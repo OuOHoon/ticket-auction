@@ -1,96 +1,57 @@
-# Ticket Auction(T.A)
+# 티켓 예매 및 경매 서비스
 
-## 소개
-**🎟️ 서비스 주소** : [Ticket Auction 서비스 주소](https://ticket-auction.shop/index.html)
+## 프로젝트 소개
 
-암표 문제를 방지하기 위해 양도 불가능하며 어차피 비싸게 살 티켓을 합법적으로 경매로 살 수 있는 티켓 예매 서비스 개발
+공연 티켓을 **정가 예매**와 **경매** 두 가지 방식으로 구매할 수 있는 웹 서비스입니다.
 
+**예매 기능**을 담당했습니다.
 
-## 🧑‍💻팀원
-|<img src="https://github.com/jshstar/ticket-auction-backend/assets/17760465/33b3a12b-cc14-4962-91b5-11dde59a5cba" style="width:200px; height:200px;">|<img src="https://github.com/jshstar/ticket-auction-backend/assets/17760465/337d188f-af3f-4e78-9345-14023612c855" style="width:200px; height:200px;">|<img src="https://github.com/jshstar/ticket-auction-backend/assets/17760465/f42b7841-54dc-4beb-b662-d6e15f6c9290" style="width:200px; height:200px;">|<img src="https://github.com/jshstar/ticket-auction-backend/assets/50236501/61a3d287-d8bf-4004-8f8e-274a5027c88b" style="width:200px; height:200px;">|
-|:--:|:--:|:--:|:--:|
-|[정성호](https://github.com/jshstar?tab=repositories)|[김진훈](https://github.com/ouohoon?tab=repositories)|[김민중](https://github.com/kmiss?tab=repositories)|[김혜윤](https://github.com/kimhyeyun?tab=repositories)|
-|리더|부리더|팀원|팀원|
-|공연장/공연/공연 정보/등급 API<br>성능테스트<br>캐싱 기능|예매 API<br>동시성 테스트<br>성능 테스트<br>캐싱 기능|경매/입찰 API<br>동시성 테스트<br>CI/CD 구성<br>인프라 설계/구성|회원/결제 API<br>인증/인가 처리<br>전반 프론트 구현<br>성능 테스트|
+## 주요 기능
 
+- **회원 관리**: JWT 기반 회원가입, 로그인, 정보 수정
+- **공연 정보**: 공연, 공연장, 등급, 회차 등 상세 정보 관리
+- **티켓 예매**: 좌석 선택을 통한 실시간 정가 예매 및 취소
+- **티켓 경매**: 최고가 입찰 방식의 티켓 경매
+- **실시간 좌석 조회**: 예매/경매 가능한 좌석 상태 실시간 확인
+- **결제**: 토스페이먼츠 API 연동 결제
+- **티켓 인증**: QR 코드를 통한 티켓 현장 인증
 
-## 🏗 아키텍쳐
+## 기술 스택
+
+- **Backend**: Java 17, Spring Boot 3.2, Spring Security, Spring Data JPA, QueryDSL
+- **Database**: MySQL, Redis
+- **Build**: Gradle
+- **Frontend**: JavaScript, jQuery, HTML, CSS
+- **Infra**: AWS (EC2, RDS, ElastiCache, S3, CloudFront), Docker
+
+## 아키텍처
+
 ![t-a_구조_최종 drawio](https://github.com/jshstar/ticket-auction-backend/assets/50236501/1616782d-1939-42e2-a4d8-dc72488ecf60)
 
-## Backend CI/CD
-![image](https://github.com/jshstar/ticket-auction-backend/assets/50236501/ffb381e7-5ac9-4b87-94e5-076e017a8275)
+---
 
-## Monitoring
-![image](https://github.com/jshstar/ticket-auction-backend/assets/17760465/b9df5605-7ad3-478c-b632-bc390b6a539c)
+## 담당 업무
 
+### 1. 예매/좌석 관련 API 개발
+- 티켓 예매, 취소, 좌석 상태 조회, 예매 기록 조회, 티켓 QR 인증 API를 개발했습니다.
 
-## 🛠️ 사용 기술
+### 2. 좌석 테이블 설계 변경 및 동시성 제어
+- **문제점**: 모든 좌석 정보를 미리 생성하는 방식은 불필요한 데이터가 많아 장기적인 성능 저하가 우려되었습니다.
+- **개선**: 예매된 좌석만 저장하도록 스키마를 변경하고, `[공연, 구역, 좌석 번호]`를 복합 기본키로 설정했습니다.
+- **결과**: 데이터 저장 공간을 효율화하고, 복합키 제약조건을 통해 좌석 예매의 동시성 문제를 해결했습니다.
 
-### Backend
+### 3. Redis 캐시를 이용한 좌석 조회 성능 개선
+- **문제점**: 예매 과정에서 빈번하게 호출되는 '좌석 상태 조회 API'의 DB 조회 부하가 예상되었습니다.
+- **개선**: Cache-Aside 패턴을 적용했습니다. 서버 시작 시 DB-Cache 데이터를 동기화하고, 예매 시 캐시를 갱신(Write-Through)하여 정합성을 확보했습니다. 캐시는 공연 시작 시간에 맞춰 TTL로 자동 삭제되도록 설정했습니다.
+- **결과**: nGrinder 테스트 결과, API 성능이 다음과 같이 향상되었습니다.
+    - **TPS: 1000 → 1800 (80% 증가)**
+    - **TTFB: 600ms → 400ms (33% 감소)**
 
-- Java 17
-- Spring Boot 3.2.1
-- Spring Data JPA
-- Spring Data Redis
-- QueryDsl
+### 4. nGrinder 테스트 환경 오류 해결
+- **문제점**: nGrinder Controller의 Local IP 인식 오류로 Agent 연결이 실패했습니다.
+- **해결**: `nslookup`으로 원인(SKB DNS의 .local 도메인 응답)을 파악하고, Google DNS로 변경하여 해결했습니다.
 
-- Lombok
-- Jwt
-- Zxing (QR Code)
-- Spring Security
-- Spring Validation
-
-### Frontend
-
-- HTML 5
-- CSS
-- JQuery
-- Javascript
-
-- Bootstrap
-- sweetalert
-- js-cookie
-- fullcalendar
-- jQuery Seat Charts
-
-### Infrastructure
-
-- EC2
-- Application Load Balancer
-- S3
-- CloudFront
-- RDS
-- Docker
-
-- Elastic Cache for Redis
-- Prometheus
-- Grafana
-- Promtail
-- Loki
-
-## 🍀 주요 기술
-
-### **서비스**
-
-- 동시성 제어 - (Unique Index, Distribution Lock)
-- Redis 캐시 서버
-- Server-Sent-Events
-- 토스 결제 API
-
-### 성능 개선
-
-- 서비스 성능 테스트 - nGrinder
-- CI/CD - Github Actions
-
-### 인프라
-
-- CI/CD
-    - GitHubActions
-    - Code Deploy - Blue Green Deploy
-    - ECR
-- 모니터링
-    - Prometheus
-    - grafana
-- 분산처리
-    - Application Load Balancer
-    - Auto Scaling group
+### 5. 사용자 피드백 기반 UI 개선
+- **문제점**: 예매와 경매 UI가 한 화면에 있어 혼란스럽다는 사용자 피드백이 있었습니다.
+- **개선**: 피드백을 반영하여 예매와 경매 UI를 분리하고, 가시성 위주로 레이아웃을 개선했습니다.
+- **결과**: 사용자 편의성을 개선했습니다.
